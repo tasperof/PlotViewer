@@ -1,0 +1,23 @@
+body,html {
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  background:#e6f0ff;
+}
+#app {width:100vw;height:100vh;}
+#ui {
+  position:absolute;top:10px;left:10px;
+  background:rgba(255,255,255,0.8);
+  padding:8px 12px;border-radius:8px;
+  font-family:sans-serif;font-size:14px;line-height:1.4;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+#ui button {
+  margin-top:6px;
+  padding:4px 8px;
+  border:1px solid #555;
+  border-radius:4px;
+  background:#fff;
+  cursor:pointer;
+}
+#ui button:hover {background:#f0f0f0;}
