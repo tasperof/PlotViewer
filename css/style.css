@@ -21,3 +21,21 @@ body,html {
   cursor:pointer;
 }
 #ui button:hover {background:#f0f0f0;}
+
+.focus-btn {
+  position: absolute;
+  padding: 6px 12px;
+  background: rgba(113, 171, 230, 0.3); /* semi-transparent blue */
+  color: #fff;
+  border: 0px solid rgba(255,255,255,0.6);
+  border-radius: 12px;
+  font-family: sans-serif;
+  font-size: 10px;
+  cursor: pointer;
+  transform: translate(-50%, -50%); /* centers on 3D point */
+  transition: background 0.2s;
+}
+
+.focus-btn:hover {
+  background: rgba(0, 128, 255, 0.8); /* less transparent on hover */
+}
