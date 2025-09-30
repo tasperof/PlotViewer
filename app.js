@@ -19,8 +19,21 @@ camera.position.set(0, 1.2, 30);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.35;
-controls.minPolarAngle = 0;            // looking straight down from above
-controls.maxPolarAngle = Math.PI *0.45;
+controls.minPolarAngle = 0;
+controls.maxPolarAngle = Math.PI * 0.45;
+
+// optional: prevent zooming too far out
+controls.minDistance = 5;
+controls.maxDistance = 1000;
+
+// Hook into the change event to clamp target
+controls.addEventListener('change', () => {
+  // Stop the target from going below "ground" level (y = 0 in this case)
+  if (controls.target.y < 0) {
+    controls.target.y = 0;
+  }
+});
+
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x99bbff, 1.0);
 scene.add(hemi);
@@ -40,13 +53,21 @@ const focusButtons = [];
 // --- new: camera transition state ---
 let camAnim = null; // { startPos, startTarget, endPos, endTarget, t, duration }
 
-loader.load("./models/mymodel.glb", (gltf) => {
-  scene.add(gltf.scene);
+loader.load(
+  "./models/mymodel.glb",
+  (gltf) => {
+    scene.add(gltf.scene);
+    document.getElementById('loadingOverlay').style.display = "none";
+    if (gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(gltf.scene);
+      gltf.animations.forEach(c => mixer.clipAction(c).play());
+    }
+    smoothFrame(gltf.scene);
+  
+  undefined, // no reliable progress on GitHub
+  (error) => console.error(error)
 
-  if (gltf.animations.length) {
-    mixer = new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach(c => mixer.clipAction(c).play());
-  }
+
 
   gltf.scene.traverse((child) => {
     /*if (child.isMesh) {
@@ -116,13 +137,27 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 
-  // update button overlay positions
-  focusButtons.forEach(({ btn, mesh }) => {
-    const p = new THREE.Vector3();
-    mesh.getWorldPosition(p).project(camera);
+// update button overlay positions
+focusButtons.forEach(({ btn, mesh }) => {
+  const p = new THREE.Vector3();
+  mesh.getWorldPosition(p).project(camera);
+
+  // Check if inside clip space (-1 to 1 for x, y, and z)
+  const isVisible =
+    p.x >= -1 && p.x <= 1 &&
+    p.y >= -1 && p.y <= 1 &&
+    p.z >= -1 && p.z <= 1;
+
+  if (!isVisible) {
+    btn.style.display = "none";
+  } else {
+    btn.style.display = "block";
     btn.style.left = `${(p.x * 0.5 + 0.5) * container.clientWidth}px`;
     btn.style.top  = `${(-p.y * 0.5 + 0.5) * container.clientHeight}px`;
-  });
+  }
+});
+
+
 }
 animate();
 

@@ -15,12 +15,17 @@
   </script>
  </head>
 <body>
+  <div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingText">...Loading Scene...</div>
+</div>
+
   <div id="app"></div>
   <div id="ui">
     <div><strong>Controls:</strong><br>
-      Drag = Rotate<br>
-      Scroll = Zoom<br>
-      Right Click = Pan
+      1 finger / left click to Rotate<br>
+      Pinch / Scroll = Zoom<br>
+      2 finger / right click to drag
     </div>
     <button id="resetBtn">Reset Camera</button>
   </div>
