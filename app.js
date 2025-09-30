@@ -1,0 +1,133 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/loaders/DRACOLoader.js";
+
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe6f0ff);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth/container.clientHeight, 0.1, 1000);
+camera.position.set(0, 1.2, 30);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.35;
+controls.minPolarAngle = 0;            // looking straight down from above
+controls.maxPolarAngle = Math.PI *0.45;
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x99bbff, 1.0);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+dir.position.set(5, 10, 5);
+scene.add(dir);
+
+const loader = new GLTFLoader();
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/draco/");
+loader.setDRACOLoader(dracoLoader);
+
+let mixer;
+const focusAreas = [];
+const focusButtons = [];
+
+// --- new: camera transition state ---
+let camAnim = null; // { startPos, startTarget, endPos, endTarget, t, duration }
+
+loader.load("./models/mymodel.glb", (gltf) => {
+  scene.add(gltf.scene);
+
+  if (gltf.animations.length) {
+    mixer = new THREE.AnimationMixer(gltf.scene);
+    gltf.animations.forEach(c => mixer.clipAction(c).play());
+  }
+
+  gltf.scene.traverse((child) => {
+    /*if (child.isMesh) {
+    // ensure proper alpha blending
+    if (child.material && child.material.transparent) {
+      child.frustumCulled = false;
+      child.material.transparent = true;
+      child.material.depthWrite = false;   // prevents z-fighting
+      child.material.alphaTest = 0.4;      // clip fully-transparent pixels
+      child.material.side = THREE.DoubleSide;
+
+    }}*/
+    if (child.isMesh && child.name.startsWith("FocusArea")) {
+      child.visible = false;
+      focusAreas.push(child);
+
+      const btn = document.createElement("div");
+      btn.className = "focus-btn";
+      btn.innerText = "Focal Point";
+      document.body.appendChild(btn);
+      btn.addEventListener("click", () => smoothFrame(child));
+      focusButtons.push({ btn, mesh: child });
+    }
+  });
+
+  smoothFrame(gltf.scene); // initial framing
+}, undefined, console.error);
+
+// --- smooth camera frame ---
+function smoothFrame(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3()).length();
+  const center = box.getCenter(new THREE.Vector3());
+
+  const distance = size / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
+  const endPos = center.clone().add(new THREE.Vector3(0, size * 0.8, distance * 0.5));
+  const endTarget = center.clone();
+
+  camAnim = {
+    startPos: camera.position.clone(),
+    startTarget: controls.target.clone(),
+    endPos, endTarget,
+    t: 0,
+    duration: 0.6 // seconds
+  };
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  smoothFrame(scene);
+});
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  if (mixer) mixer.update(delta);
+
+  // interpolate camera if animating
+  if (camAnim) {
+    camAnim.t += delta / camAnim.duration;
+    const k = Math.min(camAnim.t, 1);
+    camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, k);
+    controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, k);
+    if (k >= 1) camAnim = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  // update button overlay positions
+  focusButtons.forEach(({ btn, mesh }) => {
+    const p = new THREE.Vector3();
+    mesh.getWorldPosition(p).project(camera);
+    btn.style.left = `${(p.x * 0.5 + 0.5) * container.clientWidth}px`;
+    btn.style.top  = `${(-p.y * 0.5 + 0.5) * container.clientHeight}px`;
+  });
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth/container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
